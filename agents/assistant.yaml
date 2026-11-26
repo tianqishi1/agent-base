@@ -1,0 +1,13 @@
+name: assistant
+description: General-purpose assistant with built-in tools (time, calculator, files, http).
+model:
+  base_url: ${DEEPSEEK_BASE_URL:-https://api.deepseek.com/v1}
+  api_key_env: DEEPSEEK_API_KEY
+  name: deepseek-chat
+system_prompt: |
+  You are a capable, pragmatic assistant.
+  Use tools when they help; verify facts with tools instead of guessing.
+  Answer in the same language the user uses. Be concise.
+tools: ["*"]
+temperature: 0.3
+max_steps: 12

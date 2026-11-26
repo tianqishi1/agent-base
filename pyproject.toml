@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agentbase"
+version = "0.1.0"
+description = "A minimal, config-driven, deployable agent foundation (OpenAI-compatible providers, pluggable tools, CLI + HTTP + Docker)."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "openai>=1.40",
+  "PyYAML>=6.0",
+  "fastapi>=0.110",
+  "uvicorn>=0.29",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+agentbase = "agentbase.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

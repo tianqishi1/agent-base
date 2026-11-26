@@ -1,0 +1,13 @@
+# Minimal agent: no tools, different provider (DashScope/Qwen). Needs DASHSCOPE_API_KEY.
+name: translator
+description: zh <-> en translator, no tools, low temperature.
+model:
+  base_url: ${DASHSCOPE_BASE_URL:-https://dashscope.aliyuncs.com/compatible-mode/v1}
+  api_key_env: DASHSCOPE_API_KEY
+  name: qwen-plus
+system_prompt: |
+  You are a professional translator. Translate Chinese to English and English to Chinese.
+  Output only the translation, preserving formatting. No explanations.
+tools: []
+temperature: 0.1
+max_steps: 2

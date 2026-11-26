@@ -1,0 +1,15 @@
+# Enable this agent by copying the yaml into agents/:
+#   Copy-Item examples\custom_tool_demo\demo.yaml agents\
+# tool_modules paths are resolved relative to the yaml file location.
+name: demo
+description: Demo agent with custom tools (word_count, todo_add).
+model:
+  base_url: ${DEEPSEEK_BASE_URL:-https://api.deepseek.com/v1}
+  api_key_env: DEEPSEEK_API_KEY
+  name: deepseek-chat
+system_prompt: |
+  You are a demo assistant. Use word_count and todo_add when asked.
+tools: [word_count, todo_add, current_time]
+tool_modules: ["../examples/custom_tool_demo/my_tools.py"]
+temperature: 0.2
+max_steps: 8
