@@ -1,133 +1,137 @@
-# agent-base：可复用的 Agent 底座
+# agent-base — a reusable, config-driven agent foundation
 
-一个**轻量、配置驱动、可部署**的 agent 底座。以后想做任意 agent，只需要：
+[![ci](https://github.com/tianqishi1/agent-base/actions/workflows/ci.yml/badge.svg)](https://github.com/tianqishi1/agent-base/actions/workflows/ci.yml)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 
-> **新 agent = 一个 YAML（人设 + 模型 + 工具清单） + 可选的一个 Python 工具文件**
+English | [简体中文](README_CN.md)
 
-不需要动内核。内核只有五层，全部可替换：
+A **minimal, config-driven, deployable** foundation for building LLM agents.
+
+> **A new agent = one YAML file (persona + model + tool list) + an optional Python tool file.**
+> No kernel changes needed.
+
+**Ecosystem**: foundation agent-base · evaluation [eval-pipeline](https://github.com/tianqishi1/eval-pipeline) · skills [marketing-skills-cn](https://github.com/tianqishi1/marketing-skills-cn) · example apps [afterpilot](https://github.com/tianqishi1/afterpilot) / [heng-erp](https://github.com/tianqishi1/heng-erp) / [pregnancy-butler](https://github.com/tianqishi1/pregnancy-butler)
+
+## Architecture (5 replaceable layers)
 
 ```
-┌────────────────────────────────────────────────┐
-│  接口层   CLI (agentbase run/serve) │ HTTP API │
-├────────────────────────────────────────────────┤
-│  编排层   AgentLoop：模型→工具→结果→…→最终回答  │
-│           max_steps 护栏 / 会话续聊 / 步级trace │
-├────────────────────────────────────────────────┤
-│  工具层   @tool 装饰器 + 自动 JSON Schema       │
-│           内置: 时间/计算器/文件沙箱/HTTP GET   │
-├────────────────────────────────────────────────┤
-│  模型层   OpenAI 兼容协议 → DeepSeek / 通义 /   │
-│           OpenAI / Kimi / Ollama / vLLM 随便换  │
-├────────────────────────────────────────────────┤
-│  记忆层   sessions/*.json + traces/*.jsonl     │
-└────────────────────────────────────────────────┘
+Interface    CLI (agentbase run/serve) | HTTP API (FastAPI)
+Orchestration AgentLoop: model -> tool calls -> results -> ... -> final answer
+              max_steps guard / session resume / per-step traces
+Tools        @tool decorator + auto JSON Schema from type hints
+              built-ins: time / calculator / sandboxed files / HTTP GET
+Model        any OpenAI-compatible endpoint: DeepSeek / Qwen (DashScope) /
+              OpenAI / Kimi / Ollama / vLLM — swap via YAML
+Memory       sessions/*.json + traces/*.jsonl
 ```
 
-## 快速开始（Windows / PowerShell）
+## Quickstart
 
-```powershell
-cd D:\codex\agent-base
-python -m venv .venv
-.\.venv\Scripts\pip install -e .
-Copy-Item .env.example .env   # 填入你的 API key（DeepSeek 或 DashScope 至少一个）
+```bash
+git clone https://github.com/tianqishi1/agent-base.git && cd agent-base
+python -m venv .venv && source .venv/bin/activate    # Windows: .venv\Scripts\activate
+pip install -e .
+cp .env.example .env    # add at least one API key (DeepSeek or DashScope)
 
-.\.venv\Scripts\agentbase agents                     # 列出所有 agent
-.\.venv\Scripts\agentbase run "现在几点？顺便算一下 365*24"
-.\.venv\Scripts\agentbase run --agent translator "你好，世界"
-.\.venv\Scripts\agentbase run --session <上次的session_id> "继续刚才的话题"
-.\.venv\Scripts\agentbase serve --port 8000          # 启动 HTTP API
+agentbase agents                      # list agents
+agentbase run "What time is it? Also compute 365*24"
+agentbase run --agent translator "Hello, world"
+agentbase run --session <session_id> "continue the previous topic"
+agentbase serve --port 8000           # HTTP API
 ```
 
-HTTP 调用：
+HTTP:
 
-```powershell
-Invoke-RestMethod -Method Post http://localhost:8000/chat -ContentType "application/json" -Body '{"agent":"assistant","message":"帮我算 2^10"}'
-# GET /agents 查看可用 agent；POST /reload 热加载 YAML；GET /health 探活
+```bash
+curl -X POST http://localhost:8000/chat -H "Content-Type: application/json" \
+  -d '{"agent":"assistant","message":"compute 2^10"}'
+# GET /agents | POST /reload (hot-reload YAML) | GET /health
 ```
 
-## 如何新增一个 agent（核心用法）
+## Define a new agent
 
-1）在 `agents/` 下新建 `my_agent.yaml`：
+1) Create `agents/my_agent.yaml`:
 
 ```yaml
 name: my_agent
-description: 周报生成器
+description: Weekly report generator
 model:
   base_url: ${DEEPSEEK_BASE_URL:-https://api.deepseek.com/v1}
   api_key_env: DEEPSEEK_API_KEY
   name: deepseek-chat
+  timeout_s: 60        # per-request timeout
+  max_retries: 2       # SDK retries connection errors / 429 / 5xx with backoff
 system_prompt: |
-  你是一个周报助手，把零散记录整理成结构化周报……
-tools: [current_time, read_file, write_file]   # "*" = 全部工具
-tool_modules: ["../tools/my_tools.py"]         # 可选：自定义工具
+  You turn scattered notes into a structured weekly report...
+tools: [current_time, read_file, write_file]   # "*" = all tools
+tool_modules: ["../tools/my_tools.py"]         # optional custom tools
 temperature: 0.3
 max_steps: 12
 ```
 
-2）（可选）写自定义工具 `tools/my_tools.py`：
+2) (Optional) custom tools in `tools/my_tools.py`:
 
 ```python
 from agentbase.tools import tool
 
 @tool
 def query_erp(order_id: str) -> str:
-    """按订单号查询 ERP 订单状态。"""
-    ...  # 你的业务逻辑 / 内部 API 调用
+    """Look up an ERP order status by order id."""
+    ...  # your business logic
 ```
 
-类型注解自动生成参数 schema，docstring 自动成为工具描述。
-完整示例见 `examples/custom_tool_demo/`。
+Type hints become the parameter JSON Schema; the docstring becomes the tool
+description. Full example: `examples/custom_tool_demo/`.
 
-3）`agentbase run --agent my_agent "..."` 或 HTTP `/chat` 直接用；服务端 `POST /reload` 热加载。
+3) Run it: `agentbase run --agent my_agent "..."`, or `POST /chat`. Hot-reload with `POST /reload`.
 
-## 换模型 / 换服务商
+## Swap models / providers
 
-只改 YAML 的 `model` 三行，任何 OpenAI 兼容端点都行：
+Only the `model` block changes — any OpenAI-compatible endpoint works:
 
-| 服务商 | base_url | 模型示例 |
+| Provider | base_url | example model |
 |---|---|---|
 | DeepSeek | `https://api.deepseek.com/v1` | `deepseek-chat` |
-| 阿里百炼 | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `qwen-plus` / `qwen-max` |
+| Aliyun DashScope | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `qwen-plus` / `qwen-max` |
 | OpenAI | `https://api.openai.com/v1` | `gpt-4o` |
-| 本地 Ollama | `http://localhost:11434/v1` | `qwen3:8b`（key 随便填） |
-| 本地 vLLM | `http://localhost:8001/v1` | 你部署的模型 |
+| Ollama (local) | `http://localhost:11434/v1` | `qwen3:8b` (any key) |
+| vLLM (local) | `http://localhost:8001/v1` | your deployed model |
 
-## 部署
+## Deploy
 
-```powershell
+```bash
 docker build -t agent-base .
 docker run -d -p 8000:8000 --env-file .env -v agent_data:/data -v agent_ws:/workspace agent-base
 ```
 
-- 会话与 trace 落在 `/data`，文件工具沙箱在 `/workspace`，挂卷即持久化。
-- 新 agent 上线 = 改 YAML → 重新 build，或挂载 agents 目录 + `POST /reload`。
-- 无 Docker 时：`agentbase serve` + nssm/计划任务/任意进程管理器即可。
+Sessions/traces persist in `/data`; file tools are sandboxed to `/workspace`.
+Ship a new agent by editing YAML and rebuilding, or mount the agents dir and `POST /reload`.
 
-## 设计约定
+## Design guarantees
 
-- **工具错误不炸循环**：异常变成 `ERROR: ...` 文本回传给模型，让它自己纠错。
-- **max_steps 护栏**：防止工具死循环烧 token。
-- **文件工具沙箱**：`read_file/write_file/list_dir` 被限制在 `AGENTBASE_WORKSPACE` 内，路径穿越直接拒绝。
-- **全程可审计**：每一步 assistant 消息、工具入参/结果都写 `data/traces/<session>.jsonl`。
-- **离线可测**：`MockProvider` 脚本化模型响应，`pytest` 不需要任何 API key。
+- **Tool errors never crash the loop**: exceptions become `ERROR: ...` text so the model can self-correct.
+- **max_steps guard** against tool loops burning tokens.
+- **Sandboxed file tools**: path traversal outside `AGENTBASE_WORKSPACE` is rejected.
+- **Auditable**: every assistant message and tool call is traced to `data/traces/<session>.jsonl`.
+- **Timeouts & retries**: per-request `timeout_s` and SDK-level exponential-backoff retries (`max_retries`).
+- **Offline-testable**: `MockProvider` scripts model responses; the full test suite needs no API key.
 
-## 测试
+## Development
 
-```powershell
-.\.venv\Scripts\python -m pytest tests -v
+```bash
+pip install -e ".[dev]"
+python -m pytest -q       # offline tests
+ruff check src tests      # lint
 ```
 
-## 路线图（按需再加，保持内核小）
+## Roadmap (keep the kernel small)
 
-- [ ] SSE 流式输出（`/chat/stream`）
-- [ ] MCP 客户端（把外部 MCP server 的工具挂进 ToolRegistry）
-- [ ] 多 agent 协作（sub-agent 作为工具调用）
-- [ ] 长期记忆 / 向量检索（可接百炼知识库或本地 sqlite-vec）
-- [ ] 鉴权与限流（上生产前加 API key 中间件）
+- [ ] SSE streaming (`/chat/stream`)
+- [ ] MCP client (mount external MCP server tools into the registry)
+- [ ] Multi-agent collaboration (sub-agents as tools)
+- [ ] Long-term memory / vector retrieval
+- [ ] Auth & rate limiting middleware
 
-## 选型背景（为什么自建而不是直接用现成 harness）
+## License
 
-- **DeepSeek Harness**（MIT，TS，"Everything is a Plugin"）：理念最接近本底座，但处于 developer preview、官方警告破坏性变更；适合愿意跟上游跑的 TS 团队。
-- **Codex harness**（openai/codex，Rust）：优秀的编码专用成品 agent，不是通用底座。
-- **HKUDS OpenHarness / nanobot**（Python）：同类轻量底座，可作为参考实现对照。
-- **AGX（港大 HKUDS，agx.cool）**：游戏竞技场 + RSI 学习平台，是"训练场"不是"底座"；本底座产出的 agent 未来可以包装成 AGX 参赛包去竞技场里进化。
+Apache-2.0. See [LICENSE](LICENSE).

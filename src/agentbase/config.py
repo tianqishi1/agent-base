@@ -44,6 +44,8 @@ class ModelSpec:
     name: str = "deepseek-chat"
     base_url: str = "https://api.deepseek.com/v1"
     api_key_env: str = "DEEPSEEK_API_KEY"
+    timeout_s: float = 60.0
+    max_retries: int = 2
 
     @property
     def api_key(self) -> str:
@@ -70,6 +72,8 @@ class AgentSpec:
             name=model_raw.get("name", "deepseek-chat"),
             base_url=model_raw.get("base_url", "https://api.deepseek.com/v1"),
             api_key_env=model_raw.get("api_key_env", "DEEPSEEK_API_KEY"),
+            timeout_s=float(model_raw.get("timeout_s", 60.0)),
+            max_retries=int(model_raw.get("max_retries", 2)),
         )
         return cls(
             name=raw["name"],

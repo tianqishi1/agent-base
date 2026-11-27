@@ -3,12 +3,11 @@ import json
 
 import pytest
 
-from agentbase.config import AgentSpec, ModelSpec, load_agents
+from agentbase.config import AgentSpec, load_agents
 from agentbase.loop import AgentLoop
 from agentbase.memory import SessionStore
 from agentbase.providers import MockProvider
 from agentbase.tools import ToolRegistry
-from agentbase import builtin_tools  # registers built-ins
 
 
 @pytest.fixture(autouse=True)

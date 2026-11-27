@@ -20,7 +20,9 @@ class OpenAICompatProvider:
     def __init__(self, spec: ModelSpec):
         from openai import OpenAI  # lazy import: core loop/tests work without the SDK
         self.spec = spec
-        self.client = OpenAI(base_url=spec.base_url, api_key=spec.api_key or "EMPTY")
+        # The SDK retries connection errors / 429 / 5xx with exponential backoff.
+        self.client = OpenAI(base_url=spec.base_url, api_key=spec.api_key or "EMPTY",
+                             timeout=spec.timeout_s, max_retries=spec.max_retries)
 
     def chat(self, messages: list[dict], tools: list[dict] | None = None,
              temperature: float = 0.3) -> dict:
