@@ -1,7 +1,7 @@
 # agent-base — a reusable, config-driven agent foundation
 
 [![ci](https://github.com/tianqishi1/agent-base/actions/workflows/ci.yml/badge.svg)](https://github.com/tianqishi1/agent-base/actions/workflows/ci.yml)
-[![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
+[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 English | [简体中文](README_CN.md)
 
@@ -134,4 +134,4 @@ ruff check src tests      # lint
 
 ## License
 
-Apache-2.0. See [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE).

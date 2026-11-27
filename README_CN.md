@@ -1,7 +1,7 @@
 # agent-base：可复用的 Agent 底座
 
 [![ci](https://github.com/tianqishi1/agent-base/actions/workflows/ci.yml/badge.svg)](https://github.com/tianqishi1/agent-base/actions/workflows/ci.yml)
-[![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
+[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 [English](README.md) | 简体中文
 
